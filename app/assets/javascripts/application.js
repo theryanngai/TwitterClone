@@ -14,10 +14,19 @@
 //= require jquery_ujs
 //= require_tree .
 
-$.FollowToggle = function (el) {
+$.FollowToggle = function (el, options) {
   this.$el = $(el)
-  this.$userId = $(el).attr("data-user-id");
-  this.followState = ($(el).attr("data-initial-follow-state") === "false" ? "unfollowed" : "followed" );
+  this.$userId = $(el).attr("data-user-id") || options.id;
+  
+  var initialFolState = ($(el).attr("data-initial-follow-state"));
+  if (initialFolState ==="false" ) {
+    this.followState = "unfollowed";
+  } else if (initialFolState === "true" ) {
+    this.followState = "followed";
+  } else {
+    this.followState = options.followState;
+  }
+ 
   this.render();
   this.$el.on("click", this.handleClick.bind(this));
 };
@@ -64,9 +73,9 @@ $.FollowToggle.prototype.handleClick = function (event) {
   });
 };
 
-$.fn.followToggle = function () {
-  return this.each(function () {
-    new $.FollowToggle(this);
+$.fn.followToggle = function (el) {
+  return this.each(function () {    
+    new $.FollowToggle(this, el);
   });
 };
 
@@ -78,26 +87,44 @@ $(function () {
 $.UsersSearch = function (el) {
   this.$el = $(el);
   this.$input = $('div.users-search input');
-  this.$el.on("keypress", 'input', this.handleSearch.bind(this));
+  this.$el.on("keyup", 'input', this.handleSearch.bind(this));
 };
 
-// $.UsersSearch.prototype.handleSearch = function (event) {
-//   this.$input = $('div.users-search input');
-//
-//   $.ajax({
-//     url: "/users/search",
-//     type: 'GET',
-//     dataType: 'json',
-//     success: function () {}
-//   });
-// }
-//
-// $.fn.usersSearch = function () {
-//   return this.each(function () {
-//     new $.UsersSearch(this);
-//   });
-// };
-//
-// $(function () {
-//   $("div.users-search").usersSearch();
-// });
+$.UsersSearch.prototype.handleSearch = function (event) {
+  var that = this;
+ 
+  $.ajax({
+    url: "/users/search",
+    type: 'GET',
+    dataType: 'json', 
+    data: this.$input,
+    success: function(responseJSON, status, responseObject) {
+      that.renderResults(responseJSON);
+    }
+  });
+}
+
+$.UsersSearch.prototype.renderResults = function (results) {
+  var $ulUsers = $("ul.users");
+  $ulUsers.empty();
+  results.forEach(function(el) { 
+    if (el.followed === true){
+      el.followState = 'followed';
+    } else {
+      el.followState = 'unfollowed';
+    }
+         
+    $ulUsers.append("<li>" + el.username + "<button class=follow-toggle></button></li>"); 
+    $("button.follow-toggle").followToggle(el);
+  });
+}
+
+$.fn.usersSearch = function () {
+  return this.each(function () {
+    new $.UsersSearch(this);
+  });
+};
+
+$(function () {
+  $("div.users-search").usersSearch();
+});
